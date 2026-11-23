@@ -1,0 +1,63 @@
+# MarketMapper: one command to run everything.
+#   docker compose up --build          -> http://localhost:8080
+#   docker compose up --scale worker=4 -> research 4 websites in parallel
+
+x-backend: &backend
+  build: ./backend
+  env_file:
+    - path: .env
+      required: false
+  environment:
+    DATABASE_URL: postgresql+psycopg://marketmapper:${POSTGRES_PASSWORD:-marketmapper}@db:5432/marketmapper
+    REDIS_URL: redis://redis:6379/0
+  depends_on:
+    db:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+  restart: unless-stopped
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: marketmapper
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-marketmapper}
+      POSTGRES_DB: marketmapper
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U marketmapper"]
+      interval: 5s
+      retries: 10
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 10
+    restart: unless-stopped
+
+  api:
+    <<: *backend
+    # Runs DB migrations, then starts the API (see backend/Dockerfile)
+
+  worker:
+    <<: *backend
+    command: ["rq", "worker", "research", "--url", "redis://redis:6379/0"]
+    depends_on:
+      api:
+        condition: service_started
+
+  web:
+    build: ./frontend
+    ports:
+      - "${WEB_PORT:-8080}:80"
+    depends_on:
+      - api
+    restart: unless-stopped
+
+volumes:
+  db-data:

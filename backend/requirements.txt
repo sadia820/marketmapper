@@ -1,0 +1,28 @@
+# Web API
+fastapi==0.165.0
+uvicorn[standard]==0.54.0
+python-multipart==0.0.32
+pydantic==2.13.5
+pydantic-settings==2.16.3
+email-validator==2.4.0
+
+# Database
+SQLAlchemy==2.1.9
+psycopg[binary]==3.3.9
+alembic==1.20.1
+
+# Background jobs
+rq==3.0.0
+redis==8.1.0
+
+# Auth
+PyJWT==2.15.0
+bcrypt==5.0.0
+
+# Research
+requests==2.34.2
+beautifulsoup4==4.15.0
+PyYAML==6.0.3
+openpyxl==3.1.5
+anthropic==2.12.0
+openai==3.57.0

@@ -1,0 +1,111 @@
+# Offer catalog for TxLabz (https://txlabz.com)
+# The agent only recommends offers listed here.
+#   fits    = which businesses the offer suits (read by AI mode)
+#   signals = what the offline mode looks for on the website
+#   weight  = ranking boost in offline mode (industry-specific offers rank higher)
+
+seller: >
+  TxLabz is an AI and software engineering partner for startups and SMBs
+  (Seed to Series B). Strongest in applied AI systems and automation, plus
+  mobile, backend/API, cloud and security work. Entry offer: a free AI Audit.
+
+offers:
+  # ---- Entry offer ---------------------------------------------------------
+  - id: free_ai_audit
+    name: Free AI Audit
+    fits: Any SMB with repetitive manual work (support, scheduling, reporting, data entry) that hasn't adopted AI yet. Good first-touch offer for almost any lead.
+    signals: [no_chatbot, appointment_business, hiring]
+    weight: 1
+
+  # ---- Industry-specific AI solutions -------------------------------------
+  - id: ai_saas
+    name: AI for SaaS (ticket deflection, trial conversion, churn reduction)
+    fits: SaaS / software companies with free trials, sign-ups, pricing pages or support desks.
+    signals: [saas]
+    weight: 5
+
+  - id: ai_ecommerce
+    name: AI for E-commerce (support automation, cart recovery, catalog production)
+    fits: Online stores and product brands with a checkout or large product catalog.
+    signals: [ecommerce]
+    weight: 5
+
+  - id: ai_fintech
+    name: AI for Fintech (KYC processing, compliance reporting, support automation)
+    fits: Fintech, lending, payments, insurance-tech and other regulated financial businesses.
+    signals: [fintech]
+    weight: 5
+
+  - id: ai_healthcare
+    name: AI for Healthcare (documentation, scheduling, admin automation; HIPAA-conscious)
+    fits: Clinics, practices, dental, therapy, labs and other healthcare providers.
+    signals: [healthcare]
+    weight: 5
+
+  - id: ai_real_estate
+    name: AI for Real Estate (lead response, admin automation, listing creation)
+    fits: Brokerages, agents, property managers and real estate developers.
+    signals: [real_estate]
+    weight: 5
+
+  - id: ai_agency
+    name: AI for Agencies (reporting automation, content production, proposal workflows)
+    fits: Marketing, creative, design and digital agencies serving clients.
+    signals: [agency]
+    weight: 5
+
+  # ---- General AI ----------------------------------------------------------
+  - id: ai_automation
+    name: Applied AI & Workflow Automation (AI agents, LLM integration)
+    fits: Businesses with manual processes, no live chat/support automation, or growing teams that could automate admin work.
+    signals: [no_chatbot, hiring, growth_language]
+    weight: 2
+
+  # ---- Engineering services ------------------------------------------------
+  - id: mobile_app
+    name: Mobile App Development (iOS & Android)
+    fits: Consumer-facing or appointment-based businesses with no mobile app; SaaS products without a mobile client.
+    signals: [no_mobile_app, consumer_facing, appointment_business]
+    weight: 1
+
+  - id: product_engineering
+    name: Product Engineering & MVP Builds
+    fits: Startups launching or rebuilding a product; businesses with outdated or thin digital products.
+    signals: [startup, thin_content, no_mobile_viewport, no_website]
+    weight: 2
+
+  - id: backend_apis
+    name: Backend & API Development
+    fits: Software/SaaS companies scaling their platform, building integrations or public APIs.
+    signals: [saas, has_api]
+    weight: 1
+
+  - id: cloud_infra
+    name: Cloud & Infrastructure
+    fits: Growing software products needing stable, scalable, hardened cloud setup.
+    signals: [saas, startup, slow_site]
+    weight: 1
+
+  - id: performance_quality
+    name: Performance Optimization & QA
+    fits: Businesses whose website or product is slow, outdated or not mobile-friendly.
+    signals: [slow_site, no_mobile_viewport]
+    weight: 2
+
+  - id: cybersecurity
+    name: Cybersecurity & Compliance
+    fits: Regulated businesses (fintech, healthcare) or any site missing basic security like HTTPS.
+    signals: [no_https, fintech, healthcare]
+    weight: 2
+
+  - id: tech_strategy
+    name: Technology Strategy (idea validation, scoping, roadmaps)
+    fits: Early-stage startups or non-technical founders planning a new product.
+    signals: [startup]
+    weight: 1
+
+  - id: staff_augmentation
+    name: IT Staff Augmentation
+    fits: Companies actively hiring engineers or developers.
+    signals: [hiring_tech]
+    weight: 2

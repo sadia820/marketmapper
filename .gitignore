@@ -1,15 +1,27 @@
-# Python
-__pycache__/
-*.pyc
-venv/
-.venv/
-
 # Secrets
 .env
 
-# Run outputs and input lists (keep data out of GitHub)
-results*/
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+backend/test.db
+
+# Node
+node_modules/
+frontend/dist/
+
+# Data: keep client lists and results out of git
 *.xlsx
 *.csv
-!sample/businesses.csv
-!sample/example_output/results.csv
+!backend/tests/**/*.csv
+!samples/*.csv
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json

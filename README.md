@@ -1,70 +1,179 @@
-# MarketMapper — Business Research Agent
+# MarketMapper
 
-Give it a list of **businesses** (name and website). For each one it:
+Upload a list of businesses. MarketMapper reads each company's public website, works out what it does, finds gaps, and recommends the best-fitting **TxLabz** offers, along with a ready-to-use outreach angle.
 
-1. Reads the company's public website: home page plus up to 3 key pages (about, services, contact, careers, shop…). It respects robots.txt and waits between requests.
-2. Works out what the business does: industry, services, rough size and location.
-3. Spots gaps and opportunities, such as no HTTPS, not mobile-friendly, no online booking, no online shop, hiring, or expanding.
-4. Recommends up to 3 offers from **your** catalog (`offers.yaml`) and explains why.
-5. Writes a short outreach angle addressed to the business.
-
-The output is `results.csv` (opens in Excel), `results.json` and a readable `report.md` sorted by priority.
-
-**Scope:** companies only. The tool reads only these columns: `business_name, website, city, country, notes`. It ignores any other columns, such as personal phone or email, and does not look up individuals.
+- **Team workspace:** email and password login. Everyone on the team sees all uploads.
+- **Upload:** CSV or Excel (.xlsx). Only business columns are used (`business_name`, `website`, `city`, `country`, `notes`). Other columns are ignored, and the app tells you which ones.
+- **Live progress:** a background worker researches each business while the page updates automatically.
+- **Results:** industry, summary, gaps, top 3 offers with reasons, priority and outreach text. You can export everything to CSV.
+- **AI or rules:** with an Anthropic or OpenAI API key you get AI analysis. Without one, a fast rule-based engine is used.
 
 ---
 
-## Setup
+## Architecture
 
-```bash
-pip install -r requirements.txt
+```
+            ┌──────────────┐       ┌─────────────────┐
+ Browser ──▶│ web (nginx)  │──/api▶│ api (FastAPI)   │──┐
+            │ React SPA    │       │ auth, uploads   │  │
+            └──────────────┘       └────────┬────────┘  │
+                                            │ enqueue   │ read/write
+                                   ┌────────▼────────┐  │
+                                   │ redis (queue)   │  │
+                                   └────────┬────────┘  │
+                                   ┌────────▼────────┐  ▼
+                                   │ worker × N (RQ) │──▶ postgres
+                                   │ fetch site → AI │
+                                   └─────────────────┘
 ```
 
-For AI mode (much better summaries and matching), set your Anthropic API key:
+Each business is its own queue task, so research scales horizontally. Run more workers to process more websites in parallel (`--scale worker=4`). Job counters use atomic SQL updates, so any number of workers is safe.
 
-```bash
-# macOS / Linux
-export ANTHROPIC_API_KEY=sk-ant-...
-# Windows PowerShell
-$env:ANTHROPIC_API_KEY="sk-ant-..."
+| Layer | Tech |
+|---|---|
+| Frontend | React 19, TypeScript, Vite, Tailwind CSS, TanStack Query, React Router |
+| API | FastAPI, Pydantic, SQLAlchemy 2, Alembic, JWT auth (bcrypt) |
+| Jobs | Redis + RQ workers |
+| Database | PostgreSQL 16 |
+| Research | requests + BeautifulSoup (robots.txt-aware), Anthropic or OpenAI API |
+| Deploy | Docker Compose |
+
+## Project structure
+
+```
+marketmapper/
+├── backend/
+│   ├── app/
+│   │   ├── api/            # HTTP layer: routes + dependencies (auth)
+│   │   ├── core/           # settings, database, security
+│   │   ├── models/         # SQLAlchemy tables: users, jobs, businesses
+│   │   ├── schemas/        # Pydantic request/response models
+│   │   ├── services/
+│   │   │   ├── ingest.py   # CSV/XLSX parsing + column mapping
+│   │   │   └── research/   # fetcher, signals, rules, AI, pipeline
+│   │   ├── worker/         # queue + background task
+│   │   ├── cli.py          # command-line mode (no web app)
+│   │   └── main.py         # FastAPI app
+│   ├── migrations/         # Alembic
+│   ├── tests/              # pytest (runs on SQLite, no services needed)
+│   └── offers.yaml         # TxLabz offer catalog ← edit this
+├── frontend/
+│   └── src/
+│       ├── components/     # ui/ (Button, Card, Badge…) + layout/
+│       ├── features/       # auth/ and jobs/ (pages, hooks, components)
+│       └── lib/            # api client, auth, types, formatting
+├── samples/businesses.csv
+├── docker-compose.yml
+└── .env.example
 ```
 
-## Input file
+---
 
-CSV or Excel with at least a `business_name` column. `website` is strongly recommended.
+## Quick start (Docker, recommended, works on Windows/Mac/Linux)
 
-| business_name | website | city | country | notes |
-|---|---|---|---|---|
-| Green Valley Landscaping | greenvalleyland.com | Austin | USA | |
-| Sunrise Bakery | | Lahore | Pakistan | No website known |
+1. Install **Docker Desktop** and start it.
+2. Create your env file:
+   ```bash
+   cp .env.example .env          # Windows PowerShell: copy .env.example .env
+   ```
+   Set `SECRET_KEY` to a long random string:
+   ```bash
+   python -c "import secrets; print(secrets.token_urlsafe(48))"
+   ```
+   Optionally add `ANTHROPIC_API_KEY` (starts with `sk-ant-`) **or** `OPENAI_API_KEY` (starts with `sk-proj-`) for AI analysis.
+3. Start everything:
+   ```bash
+   docker compose up --build
+   ```
+4. Open **http://localhost:8080**, create your account and upload `samples/businesses.csv`.
 
-If the website is empty, the business is still analyzed. Having no website is itself a useful signal.
-
-## Run
-
+To use more workers for faster research:
 ```bash
-python agent.py sample/businesses.csv              # AI mode
-python agent.py sample/businesses.csv --offline    # rule-based, no API key
-python agent.py my_list.xlsx -o results_nov --max-pages 5
+docker compose up --build --scale worker=4
 ```
 
-Optional: choose the model with `AGENT_MODEL` (default `claude-sonnet-5-5`).
+When your team has signed up, set `ALLOW_SIGNUP=false` in `.env` and restart.
 
-## Customize the offers
+---
 
-Edit `offers.yaml` to list what your clients actually sell. Each offer has:
+## Local development (without Docker for the app code)
 
-- `id`: a short code
-- `name`: what appears in the report
-- `fits`: plain-English description of which businesses it suits (used by AI mode)
-- `signals`: keywords used by offline mode (see `analyze_offline` in `agent.py`)
+You need PostgreSQL and Redis running. The easiest way is to start only those two from Compose:
+```bash
+docker compose up db redis
+```
+Then expose their ports, or install them natively. **Windows note:** RQ workers need Linux or macOS, so on Windows run the worker in Docker or WSL.
 
-## Output columns
+**Backend**
+```bash
+cd backend
+python -m venv .venv && source .venv/bin/activate      # Windows: .venv\Scripts\activate
+pip install -r requirements-dev.txt
+cp .env.example .env
+alembic upgrade head
+uvicorn app.main:app --reload                          # API on :8000, docs at /docs
+rq worker research                                     # in a second terminal
+```
 
-`business_name, website, city, country, status, industry, summary, services, size_estimate, observed_gaps, recommended_offers, offer_reasons, priority, outreach_angle, confidence, pages_read, mode`
+**Frontend**
+```bash
+cd frontend
+npm install
+npm run dev                                            # http://localhost:5173 (proxies /api → :8000)
+```
 
-## Good practice for outreach
+**Checks** (the same ones CI runs on every push):
+```bash
+cd backend && ruff check . && pytest -q
+cd frontend && npm run lint && npm run build
+```
 
-- Contact businesses through their **published business channels**, such as the contact form, business email or main phone line.
-- In the US, B2B cold email must follow CAN-SPAM: a real sender, an honest subject line, a physical address and a working unsubscribe. Automated calls or texts to mobile numbers need prior consent under the TCPA, even for business numbers.
-- Check `confidence` before acting. Low means the site had little to go on.
+---
+
+## Configuration
+
+All settings are environment variables (see `.env.example`):
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `SECRET_KEY` | — | Signs login tokens. **Must** be long and random in production |
+| `ANTHROPIC_API_KEY` | empty | Enables AI analysis with Claude |
+| `AGENT_MODEL` | `claude-sonnet-5-5` | Claude model |
+| `OPENAI_API_KEY` | empty | Enables AI analysis with OpenAI |
+| `OPENAI_MODEL` | `gpt-6.2-sol` | OpenAI model |
+| `AI_PROVIDER` | `auto` | `auto` (whichever key is set, Anthropic first), `anthropic` or `openai`. With no key, rules are used |
+| `ALLOW_SIGNUP` | `true` | Turn off after the team has registered |
+| `MAX_UPLOAD_MB` | `10` | Upload size limit |
+| `MAX_ROWS_PER_UPLOAD` | `2000` | Rows per file |
+| `MAX_PAGES_PER_SITE` | `4` | Pages read per website |
+
+## Editing the offers
+
+`backend/offers.yaml` holds the TxLabz catalog. Each offer has:
+- `fits`: the description the AI reads when matching
+- `signals`: what the rule engine looks for
+- `weight`: how strongly it ranks
+
+The `seller` text tells the AI who is making the offer. Restart the API and workers after editing.
+
+## API
+
+Interactive docs are at **/docs** on the API (e.g. http://localhost:8000/docs in local dev).
+
+| Method | Path | Description |
+|---|---|---|
+| POST | `/api/auth/register` | Create account |
+| POST | `/api/auth/login` | Get token (form: `username`, `password`) |
+| GET | `/api/auth/me` | Current user |
+| POST | `/api/jobs` | Upload CSV/XLSX (multipart `file`) |
+| GET | `/api/jobs` | List uploads |
+| GET | `/api/jobs/{id}` | Upload status and progress |
+| GET | `/api/jobs/{id}/businesses` | Results (`offset`, `limit`) |
+| GET | `/api/jobs/{id}/export.csv` | Download results |
+| DELETE | `/api/jobs/{id}` | Delete upload and results |
+
+## Responsible use
+
+- MarketMapper researches **businesses** from their public websites only. It does not look up private individuals, and it discards personal columns from uploads.
+- It respects `robots.txt`, waits between page requests, and blocks internal or private network addresses.
+- Contact businesses through their published business channels, and follow CAN-SPAM, TCPA, GDPR or other local rules for outreach.
