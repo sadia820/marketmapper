@@ -1,0 +1,45 @@
+# Offer catalog — edit this to match what your clients actually sell.
+# The agent only recommends offers listed here.
+# `fits` describes which businesses the offer suits; the AI reads it when matching.
+# `signals` are keywords/gaps the fallback (no-API) mode looks for.
+
+offers:
+  - id: website_build
+    name: Website design & rebuild
+    fits: Businesses with no website, an outdated site, no mobile support, or no clear call-to-action.
+    signals: [no_website, no_https, no_mobile_viewport, thin_content]
+
+  - id: online_booking
+    name: Online booking / appointment system
+    fits: Service businesses that take appointments (salons, clinics, contractors, repair, fitness) but only list a phone number.
+    signals: [appointment_business, no_online_booking]
+
+  - id: local_seo
+    name: Local SEO & Google Business Profile
+    fits: Local businesses serving a city or region that depend on nearby customers finding them.
+    signals: [local_business]
+
+  - id: ecommerce
+    name: E-commerce store setup
+    fits: Businesses selling physical products without an online shop or checkout.
+    signals: [sells_products, no_checkout]
+
+  - id: business_financing
+    name: Business financing / equipment loans
+    fits: Growing businesses, multi-location operators, contractors, manufacturers, or anyone mentioning expansion, fleets or heavy equipment.
+    signals: [growth_language, equipment_heavy]
+
+  - id: commercial_insurance
+    name: Commercial insurance review
+    fits: Businesses with vehicles, physical premises, staff, or liability exposure (construction, food service, transport, healthcare).
+    signals: [equipment_heavy, food_service, has_staff]
+
+  - id: payroll_hr
+    name: Payroll & HR outsourcing
+    fits: Businesses with roughly 5+ employees or that are actively hiring.
+    signals: [hiring, has_staff]
+
+  - id: digital_marketing
+    name: Paid ads & social media management
+    fits: Consumer-facing businesses with weak or missing social media presence or that run promotions.
+    signals: [no_social_links, consumer_facing]

@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.pyc
+venv/
+.venv/
+
+# Secrets
+.env
+
+# Run outputs and input lists (keep data out of GitHub)
+results*/
+*.xlsx
+*.csv
+!sample/businesses.csv
+!sample/example_output/results.csv
